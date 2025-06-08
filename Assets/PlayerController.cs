@@ -1,95 +1,81 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 
 
-    [RequireComponent(typeof(CharacterController))]
-    public class PlayerController : MonoBehaviour
+
+[RequireComponent(typeof(Rigidbody))]
+public class PlayerController : MonoBehaviour
+{
+    public float Speed = 10f;
+    public float JumpForce = 300f;
+
+    //что бы эта переменна€ работала добавьте тэг "Ground" на вашу поверхность земли
+    private bool _isGrounded;
+    private Rigidbody _rb;
+
+    void Start()
     {
-        [Header("Movement Settings")]
-        [SerializeField] private float walkSpeed = 5f;
-        [SerializeField] private float jumpHeight = 2f;
-        [SerializeField] private float gravity = -9.81f;
-        [SerializeField] private float mouseSensitivity = 100f;
+        _rb = GetComponent<Rigidbody>();
+    }
 
+    // обратите внимание что все действи€ с физикой 
+    // необходимо обрабатывать в FixedUpdate, а не в Update
+    void FixedUpdate()
+    {
+        MovementLogic();
+        JumpLogic();
+    }
 
-        [Header("Ground Check")]
-        [SerializeField] private Transform groundCheck;
-        [SerializeField] private float groundDistance = 0.4f;
-        [SerializeField] private LayerMask groundMask;
+    private void MovementLogic()
+    {
+        float moveHorizontal = Input.GetAxis("Horizontal");
 
+        float moveVertical = Input.GetAxis("Vertical");
 
-        private CharacterController controller;
-        private Camera playerCamera;
-        private float xRotation = 0f;
-        private Vector3 velocity;
-        private bool isGrounded;
+        Vector3 movement = new Vector3(moveHorizontal, 0.0f, moveVertical);
 
+        _rb.AddForce(movement * Speed);
+    }
 
-        private void Awake()
+    private void JumpLogic()
+    {
+        if (Input.GetAxis("Jump") > 0)
         {
-            controller = GetComponent<CharacterController>();
-            playerCamera = GetComponentInChildren<Camera>();
-            Cursor.lockState = CursorLockMode.Locked;
-        }
-
-
-        private void Update()
-        {
-            HandleMovement();
-            HandleMouseLook();
-        }
-
-
-        private void HandleMovement()
-        {
-            // Ground check
-            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
-
-            if (isGrounded && velocity.y < 0)
+            if (_isGrounded)
             {
-                velocity.y = -2f;
+                _rb.AddForce(Vector3.up * JumpForce);
+
+                // ќбратите внимание что € делаю на основе Vector3.up 
+                // а не на основе transform.up. ≈сли персонаж упал или 
+                // если персонаж -- шар, то его личный "верх" может 
+                // любое направление. ¬лево, вправо, вниз...
+                // Ќо нам нужен скачек только в абсолютный вверх, 
+                // потому и Vector3.up
             }
-
-
-            // Get input
-            float x = Input.GetAxis("Horizontal");
-            float z = Input.GetAxis("Vertical");
-
-
-            // Calculate movement direction
-            Vector3 move = transform.right * x + transform.forward * z;
-            controller.Move(move * walkSpeed * Time.deltaTime);
-
-
-            // Jump
-            if (Input.GetButtonDown("Jump") && isGrounded)
-            {
-                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            }
-
-
-            // Apply gravity
-            velocity.y += gravity * Time.deltaTime;
-            controller.Move(velocity * Time.deltaTime);
-        }
-
-
-        private void HandleMouseLook()
-        {
-            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
-
-
-            xRotation -= mouseY;
-            xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
-
-            playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-            transform.Rotate(Vector3.up * mouseX);
         }
     }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        IsGroundedUpate(collision, true);
+    }
+
+    void OnCollisionExit(Collision collision)
+    {
+        IsGroundedUpate(collision, false);
+    }
+
+    private void IsGroundedUpate(Collision collision, bool value)
+    {
+        if (collision.gameObject.tag == ("Ground"))
+        {
+            _isGrounded = value;
+        }
+    }
+}
 
 
 
